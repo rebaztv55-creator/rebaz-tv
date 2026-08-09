@@ -1,1 +1,610 @@
+name: Build Kurd TV VIP APK
 
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+
+    - name: Setup Android Premium UI Project
+      run: |
+        mkdir -p app/src/main/assets
+        mkdir -p app/src/main/java/com/kurdtv/vip
+        mkdir -p app/src/main/res/values
+        mkdir -p app/src/main/res/layout
+        mkdir -p app/src/main/res/drawable
+        
+        cat << 'EOF' > app/src/main/res/drawable/ic_close.xml
+        <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+            <path android:fillColor="#FFFFFFFF" android:pathData="M19,6.41L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12z"/>
+        </vector>
+        EOF
+
+        cat << 'EOF' > app/src/main/res/drawable/ic_fullscreen.xml
+        <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+            <path android:fillColor="#FFFFFFFF" android:pathData="M7,14H5v5h5v-2H7V14z M5,10h2V7h3V5H5V10z M17,17h-3v2h5v-5h-2V17z M14,5v2h3v3h2V5H14z"/>
+        </vector>
+        EOF
+        
+        cp index.html app/src/main/assets/index.html || echo "<html><body><h1>Kurd TV VIP</h1></body></html>" > app/src/main/assets/index.html
+        
+        if [ -f "logo.png" ]; then cp logo.png app/src/main/res/drawable/ic_launcher.png
+        elif [ -f "logo.jpg" ]; then cp logo.jpg app/src/main/res/drawable/ic_launcher.png
+        else curl -L -o app/src/main/res/drawable/ic_launcher.png "https://upload.wikimedia.org/wikipedia/commons/c/cf/ExoPlayer_logo.png"; fi
+        
+        echo "android.useAndroidX=true" > gradle.properties
+        echo "android.enableJetifier=true" >> gradle.properties
+        echo "include ':app'" > settings.gradle
+        
+        cat << 'EOF' > build.gradle
+        buildscript {
+            repositories { google(); mavenCentral() }
+            dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
+        }
+        allprojects { repositories { google(); mavenCentral() } }
+        EOF
+        
+        cat << 'EOF' > app/build.gradle
+        plugins { id 'com.android.application' }
+        android {
+            namespace 'com.kurdtv.vip'
+            compileSdk 34
+            defaultConfig {
+                applicationId "com.kurdtv.vip"
+                minSdk 21
+                targetSdk 34
+                versionCode 1
+                versionName "1.0.0"
+            }
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+        }
+        dependencies {
+            implementation 'androidx.appcompat:appcompat:1.6.1'
+            implementation 'com.google.android.material:material:1.11.0'
+            implementation 'com.google.android.exoplayer:exoplayer:2.19.1'
+        }
+        EOF
+        
+        # Layout Update: دیزاینکرنا شاشەیا سوور و تاری یا گەلەک نایاب یا Maten TV بۆ کاتێ چالاکبوونا VPN/Proxy
+        cat << 'EOF' > app/src/main/res/layout/activity_main.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#0A0E17">
+
+            <FrameLayout
+                android:id="@+id/player_container"
+                android:layout_width="match_parent"
+                android:layout_height="240dp"
+                android:layout_alignParentTop="true"
+                android:visibility="gone">
+
+                <com.google.android.exoplayer2.ui.StyledPlayerView
+                    android:id="@+id/main_player_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="#000000"
+                    app:surface_type="texture_view"
+                    app:resize_mode="fit"
+                    app:use_controller="true"
+                    app:show_timeout="3000"
+                    app:controller_layout_id="@layout/custom_exo_controls"/>
+
+                <ProgressBar
+                    android:id="@+id/native_loading_spinner"
+                    android:layout_width="55dp"
+                    android:layout_height="55dp"
+                    android:layout_gravity="center"
+                    android:indeterminateTint="#4da6ff"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <WebView
+                android:id="@+id/main_web_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_below="@id/player_container"
+                android:background="@android:color/transparent"/>
+
+            <!-- مۆنتاژ و شاشەیا فەرمی یا سوور و تاری یا Maten TV بۆ چالاکبوونا VPN یان Proxy -->
+            <LinearLayout
+                android:id="@+id/security_alert_layout"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#0B0B0E"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="30dp"
+                android:visibility="gone"
+                android:clickable="true"
+                android:focusable="true">
+
+                <!-- Shield Warning Icon -->
+                <ImageView
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
+                    android:src="@android:drawable/ic_dialog_alert"
+                    android:layout_marginBottom="25dp"
+                    android:contentDescription="Security Alert" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="SECURITY ALERT"
+                    android:textColor="#EF4444"
+                    android:textSize="24sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="12dp"
+                    android:letterSpacing="0.1" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Security Alert: Please disable VPN or Proxy to watch."
+                    android:textColor="#FFFFFF"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:layout_marginBottom="15dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="To protect our content streams, please ensure no VPN or proxy tools are running on your device."
+                    android:textColor="#9CA3AF"
+                    android:textSize="14sp"
+                    android:gravity="center"
+                    android:layout_marginBottom="40dp"
+                    android:lineSpacingMultiplier="1.2" />
+
+                <!-- EXIT Button -->
+                <Button
+                    android:id="@+id/security_exit_btn"
+                    android:layout_width="160dp"
+                    android:layout_height="50dp"
+                    android:text="EXIT"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="#EF4444"
+                    android:textStyle="bold"
+                    android:textSize="16sp" />
+            </LinearLayout>
+        </RelativeLayout>
+        EOF
+
+        cat << 'EOF' > app/src/main/res/layout/custom_exo_controls.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#30000000">
+            <ImageButton android:id="@+id/custom_close_btn" android:layout_width="45dp" android:layout_height="45dp" android:layout_alignParentTop="true" android:layout_alignParentEnd="true" android:layout_marginTop="12dp" android:layout_marginEnd="12dp" android:background="@android:color/transparent" android:src="@drawable/ic_close" android:tint="#EF4444" android:contentDescription="Close" />
+            <ImageButton android:id="@+id/exo_fullscreen" android:layout_width="45dp" android:layout_height="45dp" android:layout_alignParentBottom="true" android:layout_alignParentStart="true" android:layout_marginStart="12dp" android:layout_marginBottom="12dp" android:background="@android:color/transparent" android:src="@drawable/ic_fullscreen" android:tint="#FFFFFF" android:contentDescription="Fullscreen" />
+            <TextView android:id="@+id/live_indicator_text" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentBottom="true" android:layout_alignParentEnd="true" android:layout_marginEnd="12dp" android:layout_marginBottom="18dp" android:text="LIVE 🔴" android:textColor="#EF4444" android:textStyle="bold" android:textSize="11sp" />
+        </RelativeLayout>
+        EOF
+        
+        # 🟢 Manifest: مۆڵەت و ناساندنا فەرمی یا ئەپێن چاودێریکردنێ
+        cat << 'EOF' > app/src/main/AndroidManifest.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            
+            <queries>
+                <package android:name="com.guoshi.httpcanary" />
+                <package android:name="com.guoshi.httpcanary.premium" />
+                <package android:name="com.reqable.android" />
+                <package android:name="com.minhui.networkcapture" />
+            </queries>
+
+            <uses-feature android:name="android.software.leanback" android:required="false" />
+            <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+            <application android:allowBackup="true" android:label="Kurd TV VIP" android:icon="@drawable/ic_launcher" android:roundIcon="@drawable/ic_launcher" android:theme="@style/Theme.AppCompat.Light.NoActionBar" android:usesCleartextTraffic="true" android:hardwareAccelerated="true">
+                <activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|screenSize|keyboardHidden|layoutDirection">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                        <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        EOF
+        
+        # 🟢 MainActivity: لادانا تەمام و فەرمی یا Wuffy Player دگەل هێلانا پشکنینا VPN و Sniffer
+        cat << 'EOF' > app/src/main/java/com/kurdtv/vip/MainActivity.java
+        package com.kurdtv.vip;
+        import android.content.Intent;
+        import android.content.pm.PackageManager;
+        import android.content.pm.ActivityInfo;
+        import android.graphics.Color;
+        import android.net.Uri;
+        import android.os.Bundle;
+        import android.os.Handler;
+        import android.view.View;
+        import android.view.ViewGroup;
+        import android.view.WindowManager;
+        import android.webkit.JavascriptInterface;
+        import android.webkit.WebChromeClient;
+        import android.webkit.WebSettings;
+        import android.webkit.WebView;
+        import android.webkit.WebViewClient;
+        import android.webkit.WebResourceRequest;
+        import android.widget.FrameLayout; 
+        import android.widget.RelativeLayout; 
+        import android.widget.ProgressBar;
+        import android.widget.Button;
+        import android.widget.Toast;
+        import androidx.appcompat.app.AppCompatActivity;
+        import androidx.appcompat.app.AlertDialog;
+
+        import com.google.android.exoplayer2.DefaultLoadControl;
+        import com.google.android.exoplayer2.ExoPlayer;
+        import com.google.android.exoplayer2.MediaItem;
+        import com.google.android.exoplayer2.Player;
+        import com.google.android.exoplayer2.PlaybackException;
+        import com.google.android.exoplayer2.ui.StyledPlayerView;
+
+        public class MainActivity extends AppCompatActivity {
+            private WebView wv;
+            private ExoPlayer player;
+            private StyledPlayerView playerView;
+            private FrameLayout playerContainer; 
+            private ProgressBar loadingSpinner;
+            private boolean isFullscreen = false;
+            private boolean isTvMode = false;
+
+            private int retryCount = 0;
+            private final int MAX_RETRIES = 10;
+            private final Handler retryHandler = new Handler();
+            private final Runnable retryRunnable = new Runnable() {
+                @Override public void run() { if (player != null) { player.prepare(); player.play(); } }
+            };
+
+            @Override
+            protected void onCreate(Bundle savedInstanceState) {
+                super.onCreate(savedInstanceState);
+                setContentView(R.layout.activity_main);
+
+                playerView = findViewById(R.id.main_player_view);
+                playerContainer = findViewById(R.id.player_container);
+                wv = findViewById(R.id.main_web_view);
+                loadingSpinner = findViewById(R.id.native_loading_spinner);
+
+                wv.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+                wv.setBackgroundColor(Color.TRANSPARENT);
+                wv.setFocusable(true);
+                wv.setFocusableInTouchMode(true);
+                wv.requestFocus();
+                playerContainer.setVisibility(View.GONE);
+
+                DefaultLoadControl loadControl = new DefaultLoadControl.Builder().setBufferDurationsMs(1000, 4000, 800, 1000).build();
+                player = new ExoPlayer.Builder(this).setLoadControl(loadControl).build();
+                playerView.setPlayer(player);
+                player.setPlayWhenReady(true); 
+
+                View closeBtn = playerView.findViewById(R.id.custom_close_btn);
+                if (closeBtn != null) closeBtn.setOnClickListener(v -> stopAndHidePlayer());
+                playerView.setFullscreenButtonClickListener(isFullScreen -> toggleFullscreen(isFullScreen));
+
+                // فەرمانا EXIT یا فەرمی بۆ مۆرکرنا بەرنامەی ب دروستی ل سەر شاشێ
+                Button exitBtn = findViewById(R.id.security_exit_btn);
+                if (exitBtn != null) {
+                    exitBtn.setOnClickListener(v -> {
+                        finishAffinity();
+                        System.exit(0);
+                    });
+                }
+
+                player.addListener(new Player.Listener() {
+                    @Override public void onPlaybackStateChanged(int state) {
+                        if (state == Player.STATE_BUFFERING) { if (loadingSpinner != null) loadingSpinner.setVisibility(View.VISIBLE); } 
+                        else if (state == Player.STATE_READY) { if (loadingSpinner != null) loadingSpinner.setVisibility(View.GONE); retryCount = 0; retryHandler.removeCallbacks(retryRunnable); } 
+                        else if (state == Player.STATE_ENDED) { if (loadingSpinner != null) loadingSpinner.setVisibility(View.GONE); }
+                    }
+                    @Override public void onPlayerError(PlaybackException error) {
+                        if (loadingSpinner != null) loadingSpinner.setVisibility(View.VISIBLE);
+                        if (retryCount < MAX_RETRIES) { retryCount++; retryHandler.removeCallbacks(retryRunnable); retryHandler.postDelayed(retryRunnable, 3000); } 
+                        else { if (loadingSpinner != null) loadingSpinner.setVisibility(View.GONE); Toast.makeText(MainActivity.this, "ئاریشە د پەخشی دا هەیە!", Toast.LENGTH_SHORT).show(); }
+                    }
+                });
+
+                // تەنێ کاتێک بەرنامەیێن دزینێ نەبن دێ دەست ب ناساندنا تەمام یا ویب مێتا دکەت
+                if (isSnifferActive()) {
+                    findViewById(R.id.security_alert_layout).setVisibility(View.VISIBLE);
+                    wv.setVisibility(View.GONE);
+                } else {
+                    findViewById(R.id.security_alert_layout).setVisibility(View.GONE);
+                    initWebViewAndLoad();
+                }
+            }
+
+            // لۆدکرنا فەرمی یا ڕێکارێن وێب کاتەکێ بەرنامە یێ پاراستی بیت
+            private void initWebViewAndLoad() {
+                WebSettings ws = wv.getSettings();
+                ws.setJavaScriptEnabled(true); 
+                ws.setDomStorageEnabled(true); 
+                ws.setAllowFileAccess(true);
+                ws.setUseWideViewPort(true); 
+                ws.setLoadWithOverviewMode(true); 
+                ws.setSupportZoom(false);
+                ws.setBuiltInZoomControls(false); 
+                ws.setDisplayZoomControls(false); 
+                ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
+                ws.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+                
+                wv.addJavascriptInterface(new Object() {
+                    
+                    @JavascriptInterface
+                    public void playInExo(final String url, final String name) {
+                        runOnUiThread(() -> {
+                            if (url != null && !url.isEmpty()) {
+                                
+                                isTvMode = false;
+                                playerView.setUseController(true); 
+                                
+                                if (!isFullscreen) {
+                                    int heightPx = (int) (240 * getResources().getDisplayMetrics().density);
+                                    RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, heightPx);
+                                    params.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+                                    playerContainer.setLayoutParams(params);
+                                    
+                                    RelativeLayout.LayoutParams webParams = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+                                    webParams.addRule(RelativeLayout.BELOW, R.id.player_container);
+                                    wv.setLayoutParams(webParams);
+                                }
+                                
+                                retryCount = 0; retryHandler.removeCallbacks(retryRunnable);
+                                if (playerContainer != null) playerContainer.setVisibility(View.VISIBLE);
+                                playerView.setVisibility(View.VISIBLE);
+                                if (loadingSpinner != null) loadingSpinner.setVisibility(View.VISIBLE);
+
+                                player.setMediaItem(MediaItem.fromUri(Uri.parse(url)));
+                                player.prepare(); player.play();
+                            }
+                        });
+                    }
+
+                    @JavascriptInterface
+                    public void stopExo() { runOnUiThread(() -> stopAndHidePlayer()); }
+
+                    @JavascriptInterface
+                    public void playTvExo(final String url) {
+                        runOnUiThread(() -> {
+                            if (url != null && !url.isEmpty()) {
+                                
+                                isTvMode = true;
+                                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+                                getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+
+                                RelativeLayout.LayoutParams playerParams = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+                                playerContainer.setLayoutParams(playerParams);
+                                playerContainer.setVisibility(View.VISIBLE);
+                                playerView.setVisibility(View.VISIBLE);
+
+                                RelativeLayout.LayoutParams webParams = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+                                webParams.removeRule(RelativeLayout.BELOW);
+                                wv.setLayoutParams(webParams);
+                                wv.bringToFront();
+                                wv.setBackgroundColor(Color.TRANSPARENT);
+
+                                playerView.setUseController(false); 
+
+                                retryCount = 0; retryHandler.removeCallbacks(retryRunnable);
+                                if (loadingSpinner != null) loadingSpinner.setVisibility(View.VISIBLE);
+                                
+                                player.setMediaItem(MediaItem.fromUri(Uri.parse(url)));
+                                player.prepare(); player.play();
+                            }
+                        });
+                    }
+
+                    @JavascriptInterface
+                    public void exitTvMode() {
+                        runOnUiThread(() -> { stopAndHidePlayer(); });
+                    }
+
+                }, "AndroidBridge");
+
+                wv.setWebViewClient(new WebViewClient() {
+                    @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) { return handleCustomUri(view, request.getUrl().toString()); }
+                    @SuppressWarnings("deprecation") @Override public boolean shouldOverrideUrlLoading(WebView view, String url) { return handleCustomUri(view, url); }
+                    private boolean handleCustomUri(WebView view, String url) {
+                        if (url == null || url.startsWith("http://") || url.startsWith("https://")) return false; 
+                        try {
+                            if (url.startsWith("intent://")) {
+                                Intent intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
+                                if (intent != null) { view.stopLoading(); PackageManager pm = view.getContext().getPackageManager(); if (intent.resolveActivity(pm) != null) { view.getContext().startActivity(intent); return true; } }
+                            } else { Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url)); view.getContext().startActivity(intent); return true; }
+                        } catch (Exception e) {}
+                        return true;
+                    }
+                });
+                
+                wv.setWebChromeClient(new WebChromeClient());
+                wv.loadUrl("https://mansorzebari86-jpg.github.io/kurdtv-app/");
+            }
+
+            // مەکینەیا پشکنینا گۆنجاو یا VPN و پڕۆکسی (تەنێ کاتەکێ هاتییە کارپێکردن)
+            private boolean isSecurityActive() {
+                return isVpnActive() || isProxyActive();
+            }
+
+            private boolean isVpnActive() {
+                try {
+                    android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getSystemService(android.content.Context.CONNECTIVITY_SERVICE);
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                        android.net.Network activeNetwork = cm.getActiveNetwork();
+                        android.net.NetworkCapabilities caps = cm.getNetworkCapabilities(activeNetwork);
+                        return caps != null && caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN);
+                    } else {
+                        return cm.getNetworkInfo(android.net.ConnectivityManager.TYPE_VPN).isConnected();
+                    }
+                } catch (Exception e) {
+                    return false;
+                }
+            }
+
+            private boolean isProxyActive() {
+                try {
+                    String proxyHost = System.getProperty("http.proxyHost");
+                    String proxyPort = System.getProperty("http.proxyPort");
+                    return (proxyHost != null && !proxyHost.isEmpty()) || (proxyPort != null && !proxyPort.isEmpty());
+                } catch (Exception e) {
+                    return false;
+                }
+            }
+
+            // فۆرمی پشکنینا تەمام و بێ هەڵە تەنێ ل سەر پاکێجێن جێگیر یێن هەکەران
+            private boolean isSnifferActive() {
+                return isPackageInstalled("com.guoshi.httpcanary") || 
+                       isPackageInstalled("com.guoshi.httpcanary.premium") || 
+                       isPackageInstalled("com.reqable.android") || 
+                       isPackageInstalled("com.minhui.networkcapture");
+            }
+
+            private boolean isPackageInstalled(String packageName) {
+                try {
+                    getPackageManager().getPackageInfo(packageName, 0);
+                    return true;
+                } catch (PackageManager.NameNotFoundException e) {
+                    return false;
+                }
+            }
+
+            // شاشەیا ئاگادارییا تاری (Dark Dialog Warning) یا فەرمی و زۆر جوان
+            private void showSnifferAlert() {
+                AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert);
+                builder.setTitle("⚠️ ئاگاداری یا گرنگ")
+                       .setMessage("هێڤیدارم بەرنامەیێن Reqable و HttpCanary ڤەمرینن داکو بشێن بچنە د ناڤ بەرنامەی دا.")
+                       .setCancelable(false)
+                       .setPositiveButton("بەرداوام بە", (dialog, which) -> {
+                           finishAffinity();
+                           System.exit(0);
+                       });
+                
+                AlertDialog dialog = builder.create();
+                dialog.show();
+                
+                // ڕێکخستنا رەنگێ دوکمێ بۆ شینێ فەرمی
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.parseColor("#4da6ff"));
+            }
+
+            // چاودێریا هوور یا چرکەیا گەڕانەوەیا بەکارهێنەری بۆ سەر ئەپی (دەمێ ئەپێ دزینێ چالاک دکەت)
+            @Override
+            protected void onResume() {
+                super.onResume();
+                if (isSecurityActive()) {
+                    findViewById(R.id.security_alert_layout).setVisibility(View.VISIBLE);
+                    wv.setVisibility(View.GONE);
+                    if (player != null) {
+                        player.stop();
+                    }
+                    playerContainer.setVisibility(View.GONE);
+                } else {
+                    if (findViewById(R.id.security_alert_layout).getVisibility() == View.VISIBLE) {
+                        findViewById(R.id.security_alert_layout).setVisibility(View.GONE);
+                        wv.setVisibility(View.VISIBLE);
+                        if (wv.getUrl() == null) {
+                            initWebViewAndLoad();
+                        }
+                    }
+                }
+            }
+
+            private void stopAndHidePlayer() {
+                retryHandler.removeCallbacks(retryRunnable);
+                if (player != null) { player.stop(); player.clearMediaItems(); }
+                if (loadingSpinner != null) loadingSpinner.setVisibility(View.GONE);
+                if (playerContainer != null) playerContainer.setVisibility(View.GONE);
+                playerView.setVisibility(View.GONE);
+
+                RelativeLayout.LayoutParams webParams = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+                webParams.addRule(RelativeLayout.BELOW, R.id.player_container);
+                wv.setLayoutParams(webParams);
+                wv.setVisibility(View.VISIBLE);
+                
+                playerView.setUseController(true);
+
+                if (isFullscreen || isTvMode) {
+                    setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+                    
+                    int heightPx = (int) (240 * getResources().getDisplayMetrics().density);
+                    RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, heightPx);
+                    params.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+                    playerContainer.setLayoutParams(params);
+                    
+                    isFullscreen = false;
+                }
+                isTvMode = false;
+            }
+
+            private void toggleFullscreen(boolean fullscreen) {
+                if (isTvMode) return; 
+                isFullscreen = fullscreen;
+                if (fullscreen) {
+                    setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+                    getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+                    wv.setVisibility(View.GONE);
+                    
+                    RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+                    playerContainer.setLayoutParams(params);
+                } else {
+                    setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+                    wv.setVisibility(View.VISIBLE);
+                    
+                    int heightPx = (int) (240 * getResources().getDisplayMetrics().density);
+                    RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, heightPx);
+                    params.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+                    playerContainer.setLayoutParams(params);
+                }
+            }
+
+            @Override public void onBackPressed() {
+                if (isFullscreen || isTvMode) { stopAndHidePlayer(); wv.evaluateJavascript("if(typeof closeTvMode === 'function') closeTvMode();", null); }
+                else if (playerView.getVisibility() == View.VISIBLE) stopAndHidePlayer();
+                else if (wv.canGoBack()) wv.goBack();
+                else super.onBackPressed();
+            }
+
+            @Override protected void onDestroy() {
+                super.onDestroy(); retryHandler.removeCallbacks(retryRunnable);
+                if (player != null) { player.release(); player = null; }
+            }
+        }
+        EOF
+        
+        gradle wrapper --gradle-version 8.5
+        chmod +x gradlew
+
+    - name: Build Premium ExoPlayer APK
+      run: ./gradlew assembleDebug --stacktrace
+
+    - name: Upload Finished ExoPlayer APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: KurdTV-ExoPlayer-APK
+        path: app/build/outputs/apk/debug/app-debug.apk
