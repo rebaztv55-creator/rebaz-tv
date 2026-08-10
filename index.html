@@ -130,7 +130,7 @@
         .settings-card { background: linear-gradient(145deg, #1a1a24, #0d0d12); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 25px 20px; text-align: center; margin-bottom: 15px; }
         .settings-avatar { width: 80px; height: 80px; background: linear-gradient(45deg, var(--yellow), #ff9800); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 35px; color: #111; margin: 0 auto 12px auto; border: 3px solid #222; }
 
-        /* 🟢 TV MODE STYLES (Maten TV Style Overlay) */
+        /* 🟢 TV MODE STYLES */
         #tvModePage {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: transparent; z-index: 10000; display: none; overflow: hidden;
@@ -195,10 +195,51 @@
             border-top-color: var(--yellow); border-radius: 50%; animation: tvSpin 1s linear infinite; display: none; z-index: 10000;
         }
         @keyframes tvSpin { 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+
+        /* Alert Box */
+        #customAlert {
+            position: fixed; top: 15px; left: 50%; transform: translateX(-50%); background: #18181b; 
+            border: 1px solid #27272a; color: #fff; padding: 10px 18px; border-radius: 15px; font-size: 13px; 
+            font-weight: bold; display: flex; align-items: center; gap: 8px; z-index: 10005; box-shadow: 0 10px 25px rgba(0,0,0,0.6); 
+            opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+        }
     </style>
 </head>
 <body>
 
+    <div id="customAlert">
+        <i class="fa-solid fa-bell text-blue-400"></i>
+        <span id="alertMessage"></span>
+    </div>
+
+    <!-- 🟢 STYLISH ACTIVATION MODAL (AKAM TV STYLE) -->
+    <div id="activationModal" class="fixed inset-0 bg-[#0d0d15] z-[99999] flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-[#161622] rounded-3xl p-6 border border-blue-500/10 shadow-[0_10px_30px_rgba(0,0,0,0.8)] text-center relative">
+            <div class="text-yellow-400 text-5xl mb-4">
+                <i class="fa-solid fa-key"></i>
+            </div>
+            <h2 class="text-white text-xl font-bold mb-2">چالاککرنا Kurd TV VIP</h2>
+            <p class="text-gray-400 text-sm mb-6 leading-relaxed">
+                تکایە کۆدی چالاکبوون بنووسە بۆ چالاککردنی تەواوی ئەپەکە و بینینی هەموو کەناڵەکان.
+            </p>
+            <div class="mb-5">
+                <input type="text" id="activationCodeInput" 
+                    class="w-full bg-[#0e0e15] border border-gray-700/50 rounded-2xl px-5 py-3.5 text-center text-white font-bold outline-none focus:border-yellow-500 focus:shadow-[0_0_10px_rgba(212,163,89,0.2)] transition-all" 
+                    placeholder="کۆدەکە لێرە بنووسە">
+            </div>
+            <div class="flex gap-3">
+                <button onclick="requestTelegramCode()" class="flex-1 bg-[#1a2b3a] border border-blue-500/20 text-[#4da6ff] rounded-2xl py-3 px-4 font-bold flex flex-col items-center justify-center gap-1 hover:bg-[#20374a] transition-all">
+                    <i class="fa-brands fa-telegram text-xl"></i>
+                    <span class="text-xs">داوای کۆد بکە</span>
+                </button>
+                <button onclick="verifyActivationCode()" class="flex-[2] bg-gradient-to-r from-yellow-500 to-amber-600 text-black rounded-2xl py-3 px-6 font-bold hover:scale-[1.02] active:scale-[0.98] transition-all">
+                    چالاککردن
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN HOME PAGE -->
     <div id="homePage" class="page active">
         <div class="header-container">
             <div class="search-box">
@@ -368,14 +409,14 @@
             { name: "MMN Sport", type: "sports", logo: "https://i.ibb.co/bMTjRs77/mmn-tv-528x297.png", stream: "http://mmn.mypsx.net:1935/live/mmnhdsport/chunklist_w29500582.m3u8" },
             { name: "NRT Sport", type: "sports", logo: "https://i.ibb.co/k6BnVvYS/images-3.jpg", stream: "http://max4kcdn.com:8080/live/5161699711/3840575058/119571.m3u8" },
             { name: "SPI Sport", type: "sports", logo: "https://i.ibb.co/dJj2wZR8/images-15.jpg", stream: "https://live20.bozztv.com/giatv/giatv-spi_sports_hd/spi_sports_hd/chunks.m3u8" },
-            { name: "Alwan Sport 1", type: "sports", logo: "https://i.ibb.co/qFY3y2jZ/images-6.jpg", stream: "http://194.42.205.21:25461/live/NedalAlsayedhome/J9Rm9gAXVE/315214.m3u8?token=SxRYWRUKFwgbUwUKU1VWU1pRAAQAV1QJBVFeVVcNW1RRAVYKVwZUUQ8VGRsRFkcHWQtpD1xBDQsHBwpQBhkbFkNTQmcPBhcIGwENDlBSF04aEl8LXUENCBoQSAhWFwNBAgEECVFAGRBcT0FcEAxUDmcCUxBRAFIaDFxNDV4ZGwxeaVRdCwNbVhsNFwlAThcLSxYUXFYWW1QaEFoIRkdYF1UUChpQUgIQFRVWVhcMQRBBRAxEcTIVFBRXQBVXW0oKX1gSAkQPBkcBFRkbCxFqEF0VQhRdAlpdRBACQwIXFUFdV0hnBQ1bXFxUQVANDEZAAkQHRBRBWldYW0wOQGpJClQUChpQUgIQFRVWVhcMQRBBRAxEcTIVFBRXQBVXW0oKX1gSAkQPBkcBFRkbCxFqEF0VQhRdAlpdRBACQwIXFUFdV0hnBQ1bXFxUQVANDEZAAkQHRBRBWldYW0wOQGpJClQUChpQUgIQFRVWVhcMQRBBRAxEcTIVFBRXQBVXW0oKX1gSAkQPBkcBFRkbCxFqEF0VQhRdAlpdRBACQwIXFUFdV0hnBQ1bXFxUQVANDEZAAkQHRBRBWldYW0wOQGpJClQUChpUUwEAChVI" },
-            { name: "Alwan Sport 2", type: "sports", logo: "https://i.ibb.co/qFY3y2jZ/images-6.jpg", stream: "http://194.42.205.21:25461/live/NedalAlsayedhome/J9Rm9gAXVE/315215.m3u8?token=SxRYWRUKFwgbUQBdUgEBWgFQUwIIUgMNVQBbUQcBX1RVBQgIU1JTVgEVGRsRFkcHWQtpD1xBDQsHBwpQBxkbFkNTQmcPBhcIGwENDlBSF04aEl8LXUENCBoQSAhWFwNBAwMGCVJAGRBcT0FcEAxUDmcCUxBRAFIaDFxNDV4ZGwxeaVRdCwNbVhsNFwlAThcLSxYUXFYWW1QaEFoIRkdYF1UUChpRUgYQFRVWVhcMQRBBRAxEcTIVFBRXQBVXW0oKX1gSAkQPBkcBFRkbCxFqEF0VQhRdAlpdRBACQwIXFUFdV0hnBQ1bXFxUQVANDEZAAkQHRBRBWldYW0wOQGpJClQUChpUUwEGDhVI" },
+            { name: "Alwan Sport 1", type: "sports", logo: "https://i.ibb.co/qFY3y2jZ/images-6.jpg", stream: "" },
+            { name: "Alwan Sport 2", type: "sports", logo: "https://i.ibb.co/qFY3y2jZ/images-6.jpg", stream: "" },
             { name: "Stv sport 1", type: "sports", logo: "https://i.ibb.co/HDKMgLFM/images-35.jpg", stream: "http://194.42.205.21:25461/live/NedalAlsayedhome/J9Rm9gAXVE/300322.m3u8?token=SxRYWRUKFwgbDwQIUgZXVAsFB18JVw5dUlYLBwQGWgVUUgIOAFBRBAAVGRsRFkcHWQtpD1xBDQsGAgtTABkbFkNTQmcPBhcIGwENDlBSF04aEl8LXUENCBoQSAhWFwMNRVpcFEQHTUZcRVtYDj1RB04PVQMaWVlNWl4UQ11bZgdVW1FWAkAPEAgVGRsLEUVAAghDClRPFVpfRkoARlAbWV5DXFRKQFZdTFlBSxtAD0BxNxRKGgZPTFNcSwhdWxtZElsDTV5AGRBQRGpLBxFBEF0HWwNKQQ0aBhAUQ19UQTxTWV5WAwFBW1ZZRhtYQARAFERbCVYKQ1dEbUgIVhcDDUVaXEU=" },
             { name: "blue sport 1", type: "sports", logo: "https://i.ibb.co/Hv2Lm8F/Screenshot-20260612-011105.jpg", stream: "https://bluesport.fun/live/blue_sport_1/index.m3u8" },
             { name: "blue sport 2", type: "sports", logo: "https://i.ibb.co/Hv2Lm8F/Screenshot-20260612-011105.jpg", stream: "https://bluesport.fun/live/blue_sport_2/index.m3u8" },
             { name: "blue sport 3", type: "sports", logo: "https://i.ibb.co/Hv2Lm8F/Screenshot-20260612-011105.jpg", stream: "https://bluesport.fun/live/blue_sport_3/index.m3u8" },
             { name: "Shna Sport", type: "sports", logo: "https://i.ibb.co/gMbvS833/images-36.jpg", stream: "https://cdn.karwan.tv/shna-tv-3/index.m3u8" },
-            { name: "Id sport", type: "sports", logo: "https://i.ibb.co/QFyYfRwG/images-38.jpg", stream: "http://darpro4k.com:8080/live/Paulus.somay/lxpuT0SOkd13GR/518112.m3u8" },
+            { name: "Id sport", type: "sports", logo: "https://i.ibb.co/QFyYfRwG/images-3.jpg", stream: "http://darpro4k.com:8080/live/Paulus.somay/lxpuT0SOkd13GR/518112.m3u8" },
             { name: "Aso sport", type: "sports", logo: "https://i.ibb.co/8nhqhyDf/images-39.jpg", stream: "http://darpro4k.com:8080/live/Paulus.somay/lxpuT0SOkd13GR/402159.m3u8" },
             { name: "Kurdistan sport", type: "sports", logo: "https://i.ibb.co/1GCD6c8G/images-40.jpg", stream: "http://darpro4k.com:8080/live/Paulus.somay/lxpuT0SOkd13GR/402162.m3u8" },
             { name: "Zaytoun Sport", type: "sports", logo: "https://i.ibb.co/jP3DSZJ3/2221-removebg-preview.png", stream: "https://barham.short.gy/zvgsport.m3u8" },
@@ -444,7 +485,46 @@
             renderDashboard();
             renderAllChannelsPage();
             setupTvInteraction();
+            
+            // 🟢 پشکنینا ب دروستی یا ئەکتیڤکرنێ ل دەستپێکێ
+            const isActivated = localStorage.getItem('kurdTvVIP_activated');
+            const modal = document.getElementById('activationModal');
+            if (isActivated === 'true') {
+                modal.style.setProperty('display', 'none', 'important');
+            } else {
+                modal.style.setProperty('display', 'flex', 'important');
+            }
         });
+
+        function triggerNotification(msg) {
+            const container = document.getElementById('customAlert');
+            const messageSlot = document.getElementById('alertMessage');
+            messageSlot.innerText = msg;
+            container.style.opacity = '1';
+            setTimeout(() => { container.style.opacity = '0'; }, 3000);
+        }
+
+        // 🟢 فرمانا پشکنینا کۆدێ چالاککرنێ یا Akam TV
+        function verifyActivationCode() {
+            const codeInput = document.getElementById('activationCodeInput');
+            const codeValue = codeInput.value.trim();
+            const modal = document.getElementById('activationModal');
+
+            if (codeValue === 'rebaz.tv') {
+                localStorage.setItem('kurdTvVIP_activated', 'true');
+                triggerNotification("بەرنامە ب سەرکەفتیانە چالاک بوو!");
+                setTimeout(() => {
+                    modal.style.setProperty('display', 'none', 'important');
+                }, 1500);
+            } else {
+                triggerNotification("کۆد خەلەتە!");
+            }
+        }
+
+        // 🟢 فرمانا داواکرنا کۆدی ژ لاپەرێ تێلیگرامێ
+        function requestTelegramCode() {
+            window.location.href = "https://t.me/Kurdtvvip";
+        }
 
         function createCard(item) {
             const displayType = item.type === 'music' ? 'مۆسیقا' : item.type;
@@ -475,6 +555,21 @@
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
             navButton.classList.add('active');
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function goToCategory(cat) {
+            switchMainTab('channelsPage', document.getElementById('nav-channels'));
+            filterCategory(cat, document.getElementById('chip-' + cat));
+        }
+
+        function filterCategory(cat, element) {
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+            element.classList.add('active');
+            const allCards = document.querySelectorAll('#grid-all-page .channel-card');
+            allCards.forEach(card => {
+                if(cat === 'all' || card.getAttribute('data-type') === cat) card.style.display = 'block';
+                else card.style.display = 'none';
+            });
         }
 
         // Search algorithm
@@ -590,24 +685,4 @@
 
         function showTvUi() {
             const ui = document.getElementById('tvUiOverlay');
-            ui.style.opacity = '1';
-            clearTimeout(tvUiTimeout);
-            tvUiTimeout = setTimeout(() => { ui.style.opacity = '0'; }, 5000);
-        }
-
-        function setupTvInteraction() {
-            document.getElementById('tvModePage').addEventListener('mousemove', showTvUi);
-            document.getElementById('tvModePage').addEventListener('touchstart', showTvUi);
-            
-            document.addEventListener('keydown', function(e) {
-                const isTvModeActive = document.getElementById('tvModePage').style.display === 'block';
-                if(isTvModeActive) {
-                    showTvUi(); 
-                    if(e.key === 'Enter') { if(document.activeElement && document.activeElement.hasAttribute('tabindex')) { document.activeElement.click(); } }
-                    if(e.key === 'Escape' || e.key === 'Backspace') { closeTvMode(); }
-                }
-            });
-        }
-    </script>
-</body>
-  </html>
+      
